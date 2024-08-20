@@ -2,6 +2,20 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import Database from 'better-sqlite3'
+
+const dbPath = join(app.getPath('userData'), 'data.db')
+const db = new Database(dbPath)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS tasks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    taskName TEXT,
+    taskType TEXT,
+    hours INTEGER,
+    minutes INTEGER,
+    day TEXT
+  )
+`)
 
 function createWindow(): void {
   // Create the browser window.
@@ -13,7 +27,9 @@ function createWindow(): void {
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      sandbox: false,
+      contextIsolation: true,
+      nodeIntegration: false
     }
   })
 
@@ -51,6 +67,34 @@ app.whenReady().then(() => {
 
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
+
+  ipcMain.handle('save-task', (_, task) => {
+    try {
+      const { taskName, taskType, hours, minutes, day } = task
+
+      const stmt = db.prepare(`
+        INSERT INTO tasks (taskName, taskType, hours, minutes, day)
+        VALUES (?, ?, ?, ?, ?)
+      `)
+
+      stmt.run(taskName, taskType, hours, minutes, day)
+      return { success: true }
+    } catch (error) {
+      console.error('Failed to save task:', error)
+      return { success: false, error: error ?? '' }
+    }
+  })
+
+  ipcMain.handle('get-tasks', () => {
+    try {
+      const stmt = db.prepare('SELECT * FROM tasks')
+      const tasks = stmt.all()
+      return tasks
+    } catch (error) {
+      console.error('Failed to get tasks:', error)
+      return []
+    }
+  })
 
   createWindow()
 

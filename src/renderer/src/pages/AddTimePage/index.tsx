@@ -32,20 +32,29 @@ function AddTimePage() {
   })
 
   const onSubmit: SubmitHandler<FormValues> = (data) => {
-    const hours = parseInt(data.hours || '0')
-    const minutes = parseInt(data.minutes || '0')
-    const totalMinutes = hours * 60 + minutes
-    const timeWasted = `${hours > 0 ? `${hours}h ` : ''}${minutes > 0 ? `${minutes}m` : ''}`
+    const hours = parseInt(data.hours || '0', 10)
+    const minutes = parseInt(data.minutes || '0', 10)
 
     const formattedData = {
       ...data,
-      hours: hours,
-      minutes: minutes,
-      timeWasted: timeWasted,
-      totalMinutes
+      hours,
+      minutes
     }
 
     console.log(formattedData)
+
+    window.api
+      .saveTask(formattedData)
+      .then((result) => {
+        if (result.success) {
+          console.log('Task saved successfully')
+        } else {
+          console.error('Failed to save task:', result.error)
+        }
+      })
+      .catch((err) => {
+        console.error('Error saving task:', err)
+      })
   }
 
   return (

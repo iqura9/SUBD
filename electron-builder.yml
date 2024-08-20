@@ -11,6 +11,7 @@ files:
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
 asarUnpack:
   - resources/**
+  - dist/assets/data.db
 win:
   executableName: package.json
 nsis:
