@@ -26,13 +26,16 @@ const taskTypes = [
   { value: 'merge', label: 'Merge Activities' },
   { value: 'codeReview', label: 'Code Review' },
   { value: 'other', label: 'Other' }
-]
+] as const
 
-const meetingTypes = [
+export const meetingTypes = [
+  { value: 'daily', label: 'Daily' },
+  { value: 'backlogRefinement', label: 'Backlog Refinement' },
   { value: 'planning', label: 'Planning' },
   { value: 'retrospective', label: 'Retrospective' },
-  { value: 'standup', label: 'Standup' }
-]
+  { value: 'team', label: 'Team communication' },
+  { value: '1-on-1', label: '1-on-1 with PM' }
+] as const
 
 function AddTimePage() {
   const { toast } = useToast()

@@ -50,12 +50,19 @@ function Sidebar() {
 const App: React.FC = () => {
   return (
     <Router>
-      <div className="flex w-full gap-4">
+      <div className="flex w-full">
         <Sidebar />
-        <div className="content w-full">
+        <div className="content w-full px-6 ">
           <Routes>
             <Route path="/" element={<DashboardPage />} />
-            <Route path="/day-review" element={<DayReviewPage />} />
+            <Route
+              path="/day-review"
+              element={
+                <div className=" py-6">
+                  <DayReviewPage />
+                </div>
+              }
+            />
             <Route
               path="/time-tracker"
               element={

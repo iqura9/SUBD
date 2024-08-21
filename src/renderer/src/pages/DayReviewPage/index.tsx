@@ -8,26 +8,19 @@ import {
   TableHeader,
   TableRow
 } from '@renderer/components/ui/table'
-import { FaBug, FaCode, FaUsers, FaTasks, FaLink } from 'react-icons/fa'
-import { cn } from '@renderer/lib/utils'
 
-interface Task {
-  id: number
-  hours: number
-  minutes: number
-  taskName: string
-  taskType: string
-  subtask?: string
-  meetingType?: string
-  taskHours?: number
-  taskMinutes?: number
-  subtaskHours?: number
-  subtaskMinutes?: number
-  day: string
-}
+import { cn } from '@renderer/lib/utils'
+import { meetingTypes } from '../TimeTrackerPage'
+import {
+  calculateRemainingTime,
+  calculateTimeInMinutes,
+  getTaskIcon,
+  getTaskTypeLabel
+} from '@renderer/utils'
+import { ITask } from '@renderer/types'
 
 function TaskReviewPage() {
-  const [tasks, setTasks] = useState<Task[]>([])
+  const [tasks, setTasks] = useState<ITask[]>([])
   const [selectedDay, setSelectedDay] = useState(new Date().toISOString().split('T')[0])
 
   useEffect(() => {
@@ -45,42 +38,40 @@ function TaskReviewPage() {
 
   const filteredTasks = tasks.filter((task) => task.day === selectedDay)
 
-  const getTaskIcon = (taskType: string) => {
-    switch (taskType) {
-      case 'bugfix':
-        return <FaBug className="mr-2 text-red-500" />
-      case 'feature':
-        return <FaCode className="mr-2 text-blue-500" />
-      case 'meeting':
-        return <FaUsers className="mr-2 text-green-500" />
-      case 'merge':
-        return <FaTasks className="mr-2 text-yellow-500" />
-      default:
-        return <FaLink className="mr-2 text-gray-500" />
-    }
+  const meetingTypesMap = meetingTypes.reduce(
+    (acc, { value, label }) => {
+      acc[value] = label
+      return acc
+    },
+    {} as Record<string, string>
+  )
+
+  const getMeetingType = (meetingType: string): string => {
+    return meetingType in meetingTypesMap ? meetingTypesMap[meetingType] : 'Other'
   }
 
-  const getTaskTypeLabel = (taskType: string) => {
-    switch (taskType) {
-      case 'bugfix':
-        return 'Bugfix'
-      case 'feature':
-        return 'Feature'
-      case 'meeting':
-        return 'Meeting'
-      case 'merge':
-        return 'Merge Activities'
-      default:
-        return 'Other'
-    }
-  }
+  // Calculate totals
+  const totals = filteredTasks.reduce(
+    (acc, task) => {
+      const trackedTimeInMinutes = calculateTimeInMinutes(task.hours, task.minutes)
+      const taskTimeInMinutes = (task.taskHours || 0) * 60 + (task.taskMinutes || 0)
 
-  // Calculate time in minutes
-  const calculateTimeInMinutes = (hours: number, minutes: number) => hours * 60 + minutes
+      acc.totalTrackedTime += trackedTimeInMinutes
+      acc.totalTaskTime += taskTimeInMinutes
+      acc.totalRemainingTime += calculateRemainingTime(taskTimeInMinutes, trackedTimeInMinutes)
 
-  // Calculate the total tracked time in minutes
-  const calculateTrackedTimeInMinutes = (hours: number, minutes: number) =>
-    calculateTimeInMinutes(hours, minutes)
+      if (task.taskType === 'feature' && task.subtask) {
+        const subtaskTimeInMinutes = (task.subtaskHours || 0) * 60 + (task.subtaskMinutes || 0)
+
+        acc.totalTrackedTime += subtaskTimeInMinutes
+        acc.totalTaskTime += subtaskTimeInMinutes
+        acc.totalRemainingTime += calculateRemainingTime(subtaskTimeInMinutes, trackedTimeInMinutes)
+      }
+
+      return acc
+    },
+    { totalTrackedTime: 0, totalTaskTime: 0, totalRemainingTime: 0 }
+  )
 
   return (
     <Card className="p-6 max-w-full mx-auto">
@@ -107,14 +98,28 @@ function TaskReviewPage() {
               <TableHead>Name</TableHead>
               <TableHead>Tracked Time</TableHead>
               <TableHead>Task Time</TableHead>
-              <TableHead>Type</TableHead> {/* New column header for type */}
+              <TableHead>Remaining Time</TableHead>
+              <TableHead>Type</TableHead>
             </TableRow>
           </TableHeader>
+
           <TableBody>
             {filteredTasks.map((task, index) => {
-              // Convert tracked time and task time to minutes for comparison
-              const trackedTimeInMinutes = calculateTrackedTimeInMinutes(task.hours, task.minutes)
+              const trackedTimeInMinutes = calculateTimeInMinutes(task.hours, task.minutes)
               const taskTimeInMinutes = (task.taskHours || 0) * 60 + (task.taskMinutes || 0)
+
+              const remainingTimeInMinutes = calculateRemainingTime(
+                taskTimeInMinutes,
+                trackedTimeInMinutes
+              )
+
+              const subtaskTimeInMinutes =
+                (task.subtaskMinutes || 0) * 60 + (task.subtaskMinutes || 0)
+
+              const remainingSubtaskTimeInMinutes = calculateRemainingTime(
+                subtaskTimeInMinutes,
+                trackedTimeInMinutes
+              )
 
               const timeClass =
                 trackedTimeInMinutes > taskTimeInMinutes
@@ -124,16 +129,26 @@ function TaskReviewPage() {
               return (
                 <Fragment key={index}>
                   <TableRow>
-                    <TableCell>
-                      <div className="flex items-center">
-                        {getTaskIcon(task.taskType)}
-                        {task.taskType === 'feature' ? (
-                          <span className="font-semibold">{task.taskName}</span>
-                        ) : (
-                          task.taskName
-                        )}
-                      </div>
-                    </TableCell>
+                    {task.taskType === 'communication' ? (
+                      <TableCell>
+                        <div className="flex items-center">
+                          {getTaskIcon(task.taskType)}
+                          {getMeetingType(task.meetingType ?? '')}
+                        </div>
+                      </TableCell>
+                    ) : (
+                      <TableCell>
+                        <div className="flex items-center">
+                          {getTaskIcon(task.taskType)}
+                          {task.taskType === 'feature' ? (
+                            <span className="font-semibold">{task.taskName}</span>
+                          ) : (
+                            task.taskName
+                          )}
+                        </div>
+                      </TableCell>
+                    )}
+
                     <TableCell className={cn(timeClass)}>
                       {`${task.hours}h ${task.minutes}m`}
                     </TableCell>
@@ -141,6 +156,11 @@ function TaskReviewPage() {
                       {task.taskHours || task.taskMinutes
                         ? `${task.taskHours || 0}h ${task.taskMinutes || 0}m`
                         : 'N/A'}
+                    </TableCell>
+                    <TableCell className={cn(timeClass)}>
+                      {remainingTimeInMinutes > 0
+                        ? `${Math.floor(remainingTimeInMinutes / 60)}h ${remainingTimeInMinutes % 60}m`
+                        : 'Completed'}
                     </TableCell>
                     <TableCell>{getTaskTypeLabel(task.taskType)}</TableCell>
                   </TableRow>
@@ -152,18 +172,34 @@ function TaskReviewPage() {
                           {task.subtask}
                         </div>
                       </TableCell>
-                      <TableCell className="text-gray-600">
+                      <TableCell className={cn(timeClass)}>
+                        {`${task.subtaskHours || 0}h ${task.subtaskMinutes || 0}m`}
+                      </TableCell>
+                      <TableCell className={cn(timeClass)}>
                         {task.subtaskHours || task.subtaskMinutes
                           ? `${task.subtaskHours || 0}h ${task.subtaskMinutes || 0}m`
                           : 'N/A'}
                       </TableCell>
-                      <TableCell></TableCell>
+                      <TableCell className={cn(timeClass)}>
+                        {remainingSubtaskTimeInMinutes > 0
+                          ? `${Math.floor(remainingSubtaskTimeInMinutes / 60)}h ${remainingSubtaskTimeInMinutes % 60}m`
+                          : 'Completed'}
+                      </TableCell>
+
                       <TableCell>Subtask</TableCell>
                     </TableRow>
                   )}
                 </Fragment>
               )
             })}
+
+            <TableRow>
+              <TableCell className="font-bold">Total</TableCell>
+              <TableCell>{`${Math.floor(totals.totalTrackedTime / 60)}h ${totals.totalTrackedTime % 60}m`}</TableCell>
+              <TableCell>{`${Math.floor(totals.totalTaskTime / 60)}h ${totals.totalTaskTime % 60}m`}</TableCell>
+              <TableCell>{`${Math.floor(totals.totalRemainingTime / 60)}h ${totals.totalRemainingTime % 60}m`}</TableCell>
+              <TableCell></TableCell>
+            </TableRow>
           </TableBody>
         </Table>
       </CardContent>
