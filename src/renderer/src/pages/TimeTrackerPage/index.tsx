@@ -26,7 +26,7 @@ const taskTypes = [
   { value: 'merge', label: 'Merge Activities' },
   { value: 'codeReview', label: 'Code Review' },
   { value: 'other', label: 'Other' }
-] as const
+]
 
 export const meetingTypes = [
   { value: 'daily', label: 'Daily' },
@@ -35,7 +35,7 @@ export const meetingTypes = [
   { value: 'retrospective', label: 'Retrospective' },
   { value: 'team', label: 'Team communication' },
   { value: '1-on-1', label: '1-on-1 with PM' }
-] as const
+]
 
 function AddTimePage() {
   const { toast } = useToast()
