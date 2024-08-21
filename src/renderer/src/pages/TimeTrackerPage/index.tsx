@@ -10,8 +10,10 @@ interface FormValues {
   taskType: string
   subtask?: string
   meetingType?: string
-  taskTime?: string
-  subtaskTime?: string
+  taskHours?: string
+  taskMinutes?: string
+  subtaskHours?: string
+  subtaskMinutes?: string
   hours: string
   minutes: string
   day: string
@@ -43,8 +45,10 @@ function AddTimePage() {
       minutes: '',
       day: new Date().toISOString().split('T')[0],
       subtask: '',
-      taskTime: '',
-      subtaskTime: ''
+      taskHours: '',
+      taskMinutes: '',
+      subtaskHours: '',
+      subtaskMinutes: ''
     }
   })
 
@@ -54,10 +58,20 @@ function AddTimePage() {
     const hours = parseInt(data.hours || '0', 10)
     const minutes = parseInt(data.minutes || '0', 10)
 
+    const taskHours = parseInt(data?.taskHours || '0', 10)
+    const taskMinutes = parseInt(data?.taskMinutes || '0', 10)
+
+    const subtaskHours = parseInt(data?.subtaskHours || '0', 10)
+    const subtaskMinutes = parseInt(data?.subtaskMinutes || '0', 10)
+
     const formattedData = {
       ...data,
       hours,
-      minutes
+      minutes,
+      taskHours,
+      taskMinutes,
+      subtaskHours,
+      subtaskMinutes
     }
 
     console.log(formattedData)
@@ -104,13 +118,31 @@ function AddTimePage() {
             options={taskTypes}
           />
           {taskType === 'feature' || taskType === 'bugfix' ? (
-            <ControlledInputField
-              name="taskName"
-              label="Task Name"
-              control={control}
-              rules={{ required: 'Task name is required' }}
-              placeholder="Enter task name"
-            />
+            <>
+              <ControlledInputField
+                name="taskName"
+                label="Task Name"
+                control={control}
+                rules={{ required: 'Task name is required' }}
+                placeholder="Enter task name"
+              />
+              <div className="flex space-x-4">
+                <ControlledInputField
+                  name="taskHours"
+                  label="Task Hours"
+                  type="number"
+                  control={control}
+                  placeholder="Hours"
+                />
+                <ControlledInputField
+                  name="taskMinutes"
+                  label="Task Minutes"
+                  type="number"
+                  control={control}
+                  placeholder="Minutes"
+                />
+              </div>
+            </>
           ) : null}
 
           {taskType === 'feature' && (
@@ -121,12 +153,22 @@ function AddTimePage() {
                 control={control}
                 placeholder="Enter subtask"
               />
-              <ControlledInputField
-                name="subtaskTime"
-                label="Subtask Time"
-                control={control}
-                placeholder="Enter subtask time"
-              />
+              <div className="flex space-x-4">
+                <ControlledInputField
+                  name="subtaskHours"
+                  label="Subtask Hours"
+                  type="number"
+                  control={control}
+                  placeholder="Hours"
+                />
+                <ControlledInputField
+                  name="subtaskMinutes"
+                  label="Subtask Minutes"
+                  type="number"
+                  control={control}
+                  placeholder="Minutes"
+                />
+              </div>
             </>
           )}
 
@@ -139,15 +181,6 @@ function AddTimePage() {
               options={meetingTypes}
             />
           )}
-
-          {taskType === 'feature' || taskType === 'bugfix' ? (
-            <ControlledInputField
-              name="taskTime"
-              label="Task Time"
-              control={control}
-              placeholder="Enter task time"
-            />
-          ) : null}
 
           <div>
             <div className="flex space-x-4">

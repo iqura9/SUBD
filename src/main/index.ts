@@ -14,8 +14,10 @@ db.exec(`
     taskType TEXT NOT NULL,
     subtask TEXT,
     meetingType TEXT,
-    taskTime TEXT,
-    subtaskTime TEXT,
+    taskHours INTEGER,
+    taskMinutes INTEGER,
+    subtaskHours INTEGER,
+    subtaskMinutes INTEGER,
     hours INTEGER NOT NULL,
     minutes INTEGER NOT NULL,
     day TEXT NOT NULL
@@ -78,24 +80,38 @@ app.whenReady().then(() => {
       const {
         taskName,
         taskType,
-        hours,
-        minutes,
-        day,
         subtask,
         meetingType,
-        taskTime,
-        subtaskTime
+        taskHours,
+        taskMinutes,
+        subtaskHours,
+        subtaskMinutes,
+        hours,
+        minutes,
+        day
       } = task
 
       // Prepare the INSERT statement
       const stmt = db.prepare(`
         INSERT INTO tasks (
-          taskName, taskType, subtask, meetingType, taskTime, subtaskTime, hours, minutes, day
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          taskName, taskType, subtask, meetingType, taskHours, taskMinutes, subtaskHours, subtaskMinutes, hours, minutes, day
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
 
       // Bind the parameters and execute the statement
-      stmt.run(taskName, taskType, subtask, meetingType, taskTime, subtaskTime, hours, minutes, day)
+      stmt.run(
+        taskName,
+        taskType,
+        subtask,
+        meetingType,
+        taskHours,
+        taskMinutes,
+        subtaskHours,
+        subtaskMinutes,
+        hours,
+        minutes,
+        day
+      )
       return { success: true }
     } catch (error) {
       console.error('Failed to save task:', error)

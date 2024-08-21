@@ -4,27 +4,31 @@ declare global {
   interface Window {
     api: {
       saveTask(task: {
+        hours: number
+        minutes: number
         taskName: string
         taskType: string
         subtask?: string
         meetingType?: string
-        taskTime?: string
-        subtaskTime?: string
-        hours: number
-        minutes: number
+        taskHours?: number
+        taskMinutes?: number
+        subtaskHours?: number
+        subtaskMinutes?: number
         day: string
       }): Promise<{ success: boolean; error?: string }>
       getTasks(): Promise<
         Array<{
           id: number
+          hours: number
+          minutes: number
           taskName: string
           taskType: string
           subtask?: string
           meetingType?: string
-          taskTime?: string
-          subtaskTime?: string
-          hours: number
-          minutes: number
+          taskHours?: number
+          taskMinutes?: number
+          subtaskHours?: number
+          subtaskMinutes?: number
           day: string
         }>
       >
