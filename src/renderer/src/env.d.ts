@@ -6,6 +6,10 @@ declare global {
       saveTask(task: {
         taskName: string
         taskType: string
+        subtask?: string
+        meetingType?: string
+        taskTime?: string
+        subtaskTime?: string
         hours: number
         minutes: number
         day: string
@@ -15,6 +19,10 @@ declare global {
           id: number
           taskName: string
           taskType: string
+          subtask?: string
+          meetingType?: string
+          taskTime?: string
+          subtaskTime?: string
           hours: number
           minutes: number
           day: string

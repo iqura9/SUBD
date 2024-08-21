@@ -5,15 +5,20 @@ import icon from '../../resources/icon.png?asset'
 import Database from 'better-sqlite3'
 
 const dbPath = join(app.getPath('userData'), 'data.db')
+console.log(dbPath)
 const db = new Database(dbPath)
 db.exec(`
   CREATE TABLE IF NOT EXISTS tasks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    taskName TEXT,
-    taskType TEXT,
-    hours INTEGER,
-    minutes INTEGER,
-    day TEXT
+    taskName TEXT NOT NULL,
+    taskType TEXT NOT NULL,
+    subtask TEXT,
+    meetingType TEXT,
+    taskTime TEXT,
+    subtaskTime TEXT,
+    hours INTEGER NOT NULL,
+    minutes INTEGER NOT NULL,
+    day TEXT NOT NULL
   )
 `)
 
@@ -70,14 +75,27 @@ app.whenReady().then(() => {
 
   ipcMain.handle('save-task', (_, task) => {
     try {
-      const { taskName, taskType, hours, minutes, day } = task
+      const {
+        taskName,
+        taskType,
+        hours,
+        minutes,
+        day,
+        subtask,
+        meetingType,
+        taskTime,
+        subtaskTime
+      } = task
 
+      // Prepare the INSERT statement
       const stmt = db.prepare(`
-        INSERT INTO tasks (taskName, taskType, hours, minutes, day)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO tasks (
+          taskName, taskType, subtask, meetingType, taskTime, subtaskTime, hours, minutes, day
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
 
-      stmt.run(taskName, taskType, hours, minutes, day)
+      // Bind the parameters and execute the statement
+      stmt.run(taskName, taskType, subtask, meetingType, taskTime, subtaskTime, hours, minutes, day)
       return { success: true }
     } catch (error) {
       console.error('Failed to save task:', error)

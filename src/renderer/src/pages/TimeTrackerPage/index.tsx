@@ -3,33 +3,52 @@ import { Card, CardHeader, CardTitle, CardContent } from '@renderer/components/u
 import { useForm, SubmitHandler } from 'react-hook-form'
 import ControlledInputField from '@renderer/components/ControlledInputField'
 import ControlledSelectField from '@renderer/components/ControlledSelectField'
+import { useToast } from '@renderer/components/ui/use-toast'
 
 interface FormValues {
   taskName: string
   taskType: string
+  subtask?: string
+  meetingType?: string
+  taskTime?: string
+  subtaskTime?: string
   hours: string
   minutes: string
   day: string
 }
 
 const taskTypes = [
-  { value: 'bugfix', label: 'Bugfix' },
   { value: 'feature', label: 'Feature' },
-  { value: 'meeting', label: 'Meeting' },
+  { value: 'bugfix', label: 'Bugfix' },
+  { value: 'communication', label: 'Communication' },
   { value: 'merge', label: 'Merge Activities' },
+  { value: 'codeReview', label: 'Code Review' },
   { value: 'other', label: 'Other' }
 ]
 
+const meetingTypes = [
+  { value: 'planning', label: 'Planning' },
+  { value: 'retrospective', label: 'Retrospective' },
+  { value: 'standup', label: 'Standup' }
+]
+
 function AddTimePage() {
-  const { control, handleSubmit } = useForm<FormValues>({
+  const { toast } = useToast()
+
+  const { control, handleSubmit, watch } = useForm<FormValues>({
     defaultValues: {
       taskName: '',
       taskType: '',
       hours: '',
       minutes: '',
-      day: new Date().toISOString().split('T')[0]
+      day: new Date().toISOString().split('T')[0],
+      subtask: '',
+      taskTime: '',
+      subtaskTime: ''
     }
   })
+
+  const taskType = watch('taskType')
 
   const onSubmit: SubmitHandler<FormValues> = (data) => {
     const hours = parseInt(data.hours || '0', 10)
@@ -48,11 +67,24 @@ function AddTimePage() {
       .then((result) => {
         if (result.success) {
           console.log('Task saved successfully')
+          toast({
+            title: 'Task saved successfully'
+          })
         } else {
+          toast({
+            title: 'Failed to save task',
+            description: result.error,
+            variant: 'destructive'
+          })
           console.error('Failed to save task:', result.error)
         }
       })
       .catch((err) => {
+        toast({
+          title: 'Error saving task',
+          description: err?.error,
+          variant: 'destructive'
+        })
         console.error('Error saving task:', err)
       })
   }
@@ -64,14 +96,6 @@ function AddTimePage() {
       </CardHeader>
       <CardContent>
         <form className="space-y-4 min-w-96" onSubmit={handleSubmit(onSubmit)}>
-          <ControlledInputField
-            name="taskName"
-            label="Task Name"
-            control={control}
-            rules={{ required: 'Task name is required' }}
-            placeholder="Enter task name"
-          />
-
           <ControlledSelectField
             name="taskType"
             label="Task Type"
@@ -79,6 +103,51 @@ function AddTimePage() {
             rules={{ required: 'Task type is required' }}
             options={taskTypes}
           />
+          {taskType === 'feature' || taskType === 'bugfix' ? (
+            <ControlledInputField
+              name="taskName"
+              label="Task Name"
+              control={control}
+              rules={{ required: 'Task name is required' }}
+              placeholder="Enter task name"
+            />
+          ) : null}
+
+          {taskType === 'feature' && (
+            <>
+              <ControlledInputField
+                name="subtask"
+                label="Subtask"
+                control={control}
+                placeholder="Enter subtask"
+              />
+              <ControlledInputField
+                name="subtaskTime"
+                label="Subtask Time"
+                control={control}
+                placeholder="Enter subtask time"
+              />
+            </>
+          )}
+
+          {taskType === 'communication' && (
+            <ControlledSelectField
+              name="meetingType"
+              label="Meeting Type"
+              control={control}
+              rules={{ required: 'Meeting type is required' }}
+              options={meetingTypes}
+            />
+          )}
+
+          {taskType === 'feature' || taskType === 'bugfix' ? (
+            <ControlledInputField
+              name="taskTime"
+              label="Task Time"
+              control={control}
+              placeholder="Enter task time"
+            />
+          ) : null}
 
           <div>
             <div className="flex space-x-4">
