@@ -5,8 +5,9 @@ import {
   ContextMenuLabel,
   ContextMenuTrigger
 } from '@radix-ui/react-context-menu'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import axios, { AxiosResponse } from 'axios'
 import { useState } from 'react'
-
 import 'tailwindcss/tailwind.css'
 
 interface Database {
@@ -15,21 +16,53 @@ interface Database {
   tables: string[]
 }
 
+interface CreateDatabaseResponse {
+  id: number
+  name: string
+}
+
+interface CreateTableRequest {
+  dbId: number
+  tableName: string
+}
+
 const Sidebar = () => {
   const [databases, setDatabases] = useState<Database[]>([])
   const [dbCounter, setDbCounter] = useState(1)
+  const queryClient = useQueryClient()
 
-  const addDatabase = (name: string) => {
-    const newDatabase = { id: dbCounter, name, tables: [] }
-    setDatabases([...databases, newDatabase])
-    setDbCounter(dbCounter + 1)
+  // Mutation for creating a database
+  const createDatabaseMutation = useMutation<
+    AxiosResponse<CreateDatabaseResponse>,
+    unknown,
+    string
+  >({
+    mutationFn: (name: string) => axios.post('/api/databases', { name }),
+    onSuccess: () => {
+      setDbCounter((prev) => prev + 1)
+      queryClient.invalidateQueries(['databases'])
+    }
+  })
+
+  // Mutation for creating a table
+  const createTableMutation = useMutation<AxiosResponse<void>, unknown, CreateTableRequest>({
+    mutationFn: ({ dbId, tableName }: CreateTableRequest) =>
+      axios.post(`/api/databases/${dbId}/tables`, { name: tableName }),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['databases'])
+    }
+  })
+
+  const addDatabase = async (name: string) => {
+    await createDatabaseMutation.mutateAsync(name)
+    setDatabases((prev) => [...prev, { id: dbCounter, name, tables: [] }])
   }
 
-  const addTable = (dbId: number, tableName: string) => {
-    const updatedDatabases = databases.map((db) =>
-      db.id === dbId ? { ...db, tables: [...db.tables, tableName] } : db
+  const addTable = async (dbId: number, tableName: string) => {
+    await createTableMutation.mutateAsync({ dbId, tableName })
+    setDatabases((prev) =>
+      prev.map((db) => (db.id === dbId ? { ...db, tables: [...db.tables, tableName] } : db))
     )
-    setDatabases(updatedDatabases)
   }
 
   const handleDatabaseCreate = () => {
