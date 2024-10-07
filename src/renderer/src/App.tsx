@@ -1,51 +1,13 @@
-import { BrowserRouter as Router, Route, Routes, Link } from 'react-router-dom'
+import { Route, BrowserRouter as Router, Routes } from 'react-router-dom'
 
 import React from 'react'
 
+import { Center } from './components/Center'
+import Sidebar from './components/Sidebar'
+import { Toaster } from './components/ui/toaster'
 import DashboardPage from './pages/DashboardPage'
 import DayReviewPage from './pages/DayReviewPage'
 import TimeTrackerPage from './pages/TimeTrackerPage'
-import { Center } from './components/Center'
-import { Toaster } from './components/ui/toaster'
-
-function Sidebar() {
-  return (
-    <div className="h-screen w-64 bg-gray-800 text-white flex flex-col">
-      <div className="p-4 text-xl font-bold">IquraTime</div>
-      <nav className="flex-grow">
-        <ul className="space-y-4 p-4">
-          <li>
-            <Link to="/" className="block p-2 rounded hover:bg-gray-700 transition-colors">
-              Dashboard
-            </Link>
-          </li>
-          <li>
-            <Link
-              to="/day-review"
-              className="block p-2 rounded hover:bg-gray-700 transition-colors"
-            >
-              Day Review
-            </Link>
-          </li>
-          <li>
-            <Link
-              to="/time-tracker"
-              className="block p-2 rounded hover:bg-gray-700 transition-colors"
-            >
-              Time Tracker
-            </Link>
-          </li>
-          <li>
-            <Link to="/settings" className="block p-2 rounded hover:bg-gray-700 transition-colors">
-              Settings
-            </Link>
-          </li>
-        </ul>
-      </nav>
-      <div className="p-4">Footer</div>
-    </div>
-  )
-}
 
 const App: React.FC = () => {
   return (
