@@ -5,9 +5,9 @@ import {
   ContextMenuLabel,
   ContextMenuTrigger
 } from '@radix-ui/react-context-menu'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import axios, { AxiosResponse } from 'axios'
-import { useState } from 'react'
+import api from '@renderer/api'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { AxiosResponse } from 'axios'
 import 'tailwindcss/tailwind.css'
 
 interface Database {
@@ -27,27 +27,27 @@ interface CreateTableRequest {
 }
 
 const Sidebar = () => {
-  const [databases, setDatabases] = useState<Database[]>([])
-  const [dbCounter, setDbCounter] = useState(1)
   const queryClient = useQueryClient()
 
-  // Mutation for creating a database
   const createDatabaseMutation = useMutation<
     AxiosResponse<CreateDatabaseResponse>,
     unknown,
     string
   >({
-    mutationFn: (name: string) => axios.post('/api/databases', { name }),
+    mutationFn: (name: string) => api.post('/api/databases', { name }),
     onSuccess: () => {
-      setDbCounter((prev) => prev + 1)
       queryClient.invalidateQueries(['databases'])
     }
   })
 
-  // Mutation for creating a table
+  const { data } = useQuery<{ databases: Database[] }>({
+    queryKey: ['databases'],
+    queryFn: () => api.get('/api/databases').then((response) => response.data)
+  })
+
   const createTableMutation = useMutation<AxiosResponse<void>, unknown, CreateTableRequest>({
     mutationFn: ({ dbId, tableName }: CreateTableRequest) =>
-      axios.post(`/api/databases/${dbId}/tables`, { name: tableName }),
+      api.post(`/api/databases/${dbId}/tables`, { name: tableName }),
     onSuccess: () => {
       queryClient.invalidateQueries(['databases'])
     }
@@ -55,14 +55,10 @@ const Sidebar = () => {
 
   const addDatabase = async (name: string) => {
     await createDatabaseMutation.mutateAsync(name)
-    setDatabases((prev) => [...prev, { id: dbCounter, name, tables: [] }])
   }
 
   const addTable = async (dbId: number, tableName: string) => {
     await createTableMutation.mutateAsync({ dbId, tableName })
-    setDatabases((prev) =>
-      prev.map((db) => (db.id === dbId ? { ...db, tables: [...db.tables, tableName] } : db))
-    )
   }
 
   const handleDatabaseCreate = () => {
@@ -79,6 +75,8 @@ const Sidebar = () => {
     }
   }
 
+  console.log('data', data)
+
   return (
     <div className="flex">
       {/* Sidebar */}
@@ -89,14 +87,13 @@ const Sidebar = () => {
             <div className="cursor-pointer p-2 hover:bg-gray-600 rounded-md">Root Folder</div>
           </ContextMenuTrigger>
           <ContextMenuContent>
-            <ContextMenuLabel>Actions</ContextMenuLabel>
             <ContextMenuItem onSelect={handleDatabaseCreate}>Create Database</ContextMenuItem>
           </ContextMenuContent>
         </ContextMenu>
 
         {/* Display databases */}
         <ul className="pl-4 mt-4">
-          {databases.map((db) => (
+          {data?.databases.map((db) => (
             <li key={db.id}>
               <ContextMenu>
                 <ContextMenuTrigger>
@@ -112,7 +109,7 @@ const Sidebar = () => {
 
               {/* Display tables inside the database */}
               <ul className="pl-4">
-                {db.tables.map((table, index) => (
+                {db.tables?.map((table, index) => (
                   <li key={index} className="p-1 text-gray-300">
                     {table}
                   </li>
