@@ -1,14 +1,13 @@
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuLabel,
-  ContextMenuTrigger
-} from '@radix-ui/react-context-menu'
 import api from '@renderer/api'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AxiosResponse } from 'axios'
 import 'tailwindcss/tailwind.css'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger
+} from '../ui/context-menu'
 
 interface Database {
   id: number
@@ -100,7 +99,6 @@ const Sidebar = () => {
                   <div className="cursor-pointer p-2 hover:bg-gray-600 rounded-md">{db.name}</div>
                 </ContextMenuTrigger>
                 <ContextMenuContent>
-                  <ContextMenuLabel>Actions</ContextMenuLabel>
                   <ContextMenuItem onSelect={() => handleTableCreate(db.id)}>
                     Create Table
                   </ContextMenuItem>
