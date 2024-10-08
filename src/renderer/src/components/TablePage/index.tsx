@@ -1,7 +1,8 @@
 import api from '@renderer/api'
 
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 
+import { queryClient } from '@renderer/main'
 import React, { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Button } from '../ui/button'
@@ -23,6 +24,21 @@ const TablePage: React.FC = () => {
 
   const [rowData, setRowData] = useState<any>({})
 
+  const mutation = useMutation({
+    mutationFn: async (newRowData: any) => {
+      await api.post(`/api/databases/${dbId}/tables/${tableId}/rows`, newRowData)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['table', dbId, tableId])
+
+      setRowData({})
+    },
+    onError: (error) => {
+      console.error('Error inserting data:', error)
+      alert('Error inserting data: ' + error.message)
+    }
+  })
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, type: string) => {
     const { name, value } = e.target
     const fieldValue = type === 'INTEGER' ? Number(value) : value
@@ -32,9 +48,8 @@ const TablePage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      await api.post(`/api/databases/${dbId}/tables/${tableId}/rows`, rowData)
-      alert('Data inserted successfully!')
-      setRowData({}) // Reset form
+      mutation.mutate(rowData)
+      setRowData({})
     } catch (error) {
       console.error('Error inserting data:', error)
       alert('Error inserting data: ' + error.message)
@@ -46,8 +61,8 @@ const TablePage: React.FC = () => {
 
   return (
     <div>
-      <h2>Table Details</h2>
-      <h3>Table Name: {data.name}</h3>
+      <h2 className="font-bold text-2xl">Table Details</h2>
+      <h3 className="font-bold text-lg">Table Name: {data.table.name}</h3>
 
       <Table>
         <TableHeader>
