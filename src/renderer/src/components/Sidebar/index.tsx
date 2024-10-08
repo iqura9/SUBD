@@ -1,7 +1,9 @@
 import api from '@renderer/api'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AxiosResponse } from 'axios'
+import { useNavigate } from 'react-router-dom'
 import 'tailwindcss/tailwind.css'
+import TablesList from '../TablesList'
 import {
   ContextMenu,
   ContextMenuContent,
@@ -27,6 +29,7 @@ interface CreateTableRequest {
 
 const Sidebar = () => {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
 
   const createDatabaseMutation = useMutation<
     AxiosResponse<CreateDatabaseResponse>,
@@ -44,20 +47,8 @@ const Sidebar = () => {
     queryFn: () => api.get('/api/databases').then((response) => response.data)
   })
 
-  const createTableMutation = useMutation<AxiosResponse<void>, unknown, CreateTableRequest>({
-    mutationFn: ({ dbId, tableName }: CreateTableRequest) =>
-      api.post(`/api/databases/${dbId}/tables`, { name: tableName }),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['databases'])
-    }
-  })
-
   const addDatabase = async (name: string) => {
     await createDatabaseMutation.mutateAsync(name)
-  }
-
-  const addTable = async (dbId: number, tableName: string) => {
-    await createTableMutation.mutateAsync({ dbId, tableName })
   }
 
   const handleDatabaseCreate = () => {
@@ -68,10 +59,7 @@ const Sidebar = () => {
   }
 
   const handleTableCreate = (dbId: number) => {
-    const tableName = prompt('Enter Table Name:')
-    if (tableName) {
-      addTable(dbId, tableName)
-    }
+    navigate(`/databases/create-table/${dbId}`)
   }
 
   console.log('data', data)
@@ -106,13 +94,14 @@ const Sidebar = () => {
               </ContextMenu>
 
               {/* Display tables inside the database */}
-              <ul className="pl-4">
+              {/* <ul className="pl-4">
                 {db.tables?.map((table, index) => (
                   <li key={index} className="p-1 text-gray-300">
                     {table}
                   </li>
                 ))}
-              </ul>
+              </ul> */}
+              <TablesList dbId={db.id} />
             </li>
           ))}
         </ul>

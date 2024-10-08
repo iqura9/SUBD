@@ -2,12 +2,11 @@ import { Route, BrowserRouter as Router, Routes } from 'react-router-dom'
 
 import React from 'react'
 
-import { Center } from './components/Center'
+import CreateTablePage from './components/CreateTable'
 import Sidebar from './components/Sidebar'
+import TablePage from './components/TablePage'
 import { Toaster } from './components/ui/toaster'
 import DashboardPage from './pages/DashboardPage'
-import DayReviewPage from './pages/DayReviewPage'
-import TimeTrackerPage from './pages/TimeTrackerPage'
 
 const App: React.FC = () => {
   return (
@@ -17,23 +16,8 @@ const App: React.FC = () => {
         <div className="content w-full px-6 ">
           <Routes>
             <Route path="/" element={<DashboardPage />} />
-            <Route
-              path="/day-review"
-              element={
-                <div className=" py-6">
-                  <DayReviewPage />
-                </div>
-              }
-            />
-            <Route
-              path="/time-tracker"
-              element={
-                <Center>
-                  <TimeTrackerPage />
-                </Center>
-              }
-            />
-            <Route path="/settings" element={<>Settings</>} />
+            <Route path="/databases/:dbId/tables/:tableId" element={<TablePage />} />
+            <Route path="/databases/create-table/:dbId" element={<CreateTablePage />} />
           </Routes>
         </div>
       </div>
