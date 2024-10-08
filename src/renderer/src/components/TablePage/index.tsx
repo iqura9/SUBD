@@ -52,6 +52,8 @@ const TablePage: React.FC = () => {
   }
 
   const handleDoubleClick = (rowIndex: number, columnName: string, currentValue: any) => {
+    if (columnName == 'id') return
+
     setEditCell({ rowIndex, columnName })
     setEditRowData((prevData) => ({ ...prevData, [columnName]: currentValue }))
   }
@@ -68,12 +70,21 @@ const TablePage: React.FC = () => {
     }
   }
 
-  const handleSaveEdit = async (rowIndex: number, columnName: string) => {
-    const rowId = rowIndex + 1
-
+  const handleSaveEdit = async (rowId: number, columnName: string) => {
     const updatedRowData = { ...editRowData }
     try {
       await api.put(`/api/databases/${dbId}/tables/${tableId}/rows/${rowId}`, updatedRowData) // Update your API endpoint as necessary
+      queryClient.invalidateQueries(['table', dbId, tableId])
+    } catch (error) {
+      console.error('Error updating data:', error)
+      alert('Error updating data: ' + error.message)
+    }
+    setEditCell(null) // Exit edit mode
+  }
+
+  const handleDelete = async (rowId: number) => {
+    try {
+      await api.delete(`/api/databases/${dbId}/tables/${tableId}/rows/${rowId}`) // Update your API endpoint as necessary
       queryClient.invalidateQueries(['table', dbId, tableId])
     } catch (error) {
       console.error('Error updating data:', error)
@@ -112,7 +123,7 @@ const TablePage: React.FC = () => {
                       name={column.name}
                       value={editRowData[column.name] || ''}
                       onChange={(e) => handleEditInputChange(e, column.type)}
-                      onBlur={() => handleSaveEdit(rowIndex, column.name)} // Save on blur
+                      onBlur={() => handleSaveEdit(row.id, column.name)} // Save on blur
                       placeholder={`Enter ${column.name}`}
                     />
                   ) : (
@@ -120,6 +131,9 @@ const TablePage: React.FC = () => {
                   )}
                 </TableCell>
               ))}
+              {editCell?.rowIndex === rowIndex ? (
+                <Button onClick={() => handleDelete(row.id)}>Delete</Button>
+              ) : null}
             </TableRow>
           ))}
 
@@ -133,6 +147,7 @@ const TablePage: React.FC = () => {
                   onChange={(e) => handleInputChange(e, column.type)}
                   placeholder={`Enter ${column.name}`}
                   required
+                  disabled={column.name === 'id'}
                 />
               </TableCell>
             ))}

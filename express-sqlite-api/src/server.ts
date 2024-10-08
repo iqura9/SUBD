@@ -167,6 +167,11 @@ app.post('/api/databases/:dbId/tables', (req: Request<{ dbId: string }>, res: Re
 
     const tableId = this.lastID // Get the inserted table's ID for use in the columns table
 
+    columns.unshift({
+      name: 'id',
+      type: 'INTEGER PRIMARY KEY AUTOINCREMENT'
+    })
+
     // Step 2: Dynamically create the table with the column definitions
     const columnDefinitions = columns
       .map((column) => {
@@ -289,6 +294,39 @@ app.put(
         }
 
         return res.status(200).json({ message: 'Row updated successfully' })
+      })
+    })
+  }
+)
+
+// DELETE endpoint to delete a row in a specified table
+app.delete(
+  '/api/databases/:dbId/tables/:tableId/rows/:rowIndex',
+  (req: Request<{ dbId: string; tableId: string; rowIndex: string }>, res: Response) => {
+    const { dbId, tableId, rowIndex } = req.params
+
+    // SQL query to get the table name
+    const getTableQuery = `SELECT name FROM tables WHERE dbId = ? AND id = ?`
+
+    db.get(getTableQuery, [dbId, tableId], (err, tableData: { name: string }) => {
+      if (err) {
+        return res.status(500).json({ error: 'Error retrieving table', details: err.message })
+      }
+
+      if (!tableData) {
+        return res.status(404).json({ error: 'Table not found' })
+      }
+
+      // Construct the SQL query for deleting the row
+      const deleteQuery = `DELETE FROM ${tableData.name} WHERE id = ?`
+
+      db.run(deleteQuery, [rowIndex], function (deleteErr) {
+        if (deleteErr) {
+          return res.status(500).json({ error: 'Error deleting row', details: deleteErr.message })
+        }
+
+        // Assuming you have cascading delete constraints set up in your database
+        return res.status(200).json({ message: 'Row deleted successfully' })
       })
     })
   }
