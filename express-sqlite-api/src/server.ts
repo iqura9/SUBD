@@ -255,6 +255,45 @@ app.post(
   }
 )
 
+app.put(
+  '/api/databases/:dbId/tables/:tableId/rows/:rowIndex',
+  (req: Request<{ dbId: string; tableId: string; rowIndex: string }>, res: Response) => {
+    const { dbId, tableId, rowIndex } = req.params
+    const updatedData = req.body // Get the updated data from the request body
+
+    // Assuming the table name is passed in the URL or obtained previously
+    const getTableQuery = `SELECT name FROM tables WHERE dbId = ? AND id = ?`
+
+    db.get(getTableQuery, [dbId, tableId], (err, tableData: { name: string }) => {
+      if (err) {
+        return res.status(500).json({ error: 'Error retrieving table', details: err.message })
+      }
+
+      if (!tableData) {
+        return res.status(404).json({ error: 'Table not found' })
+      }
+
+      // Create the update query based on the updatedData object
+      const columns = Object.keys(updatedData)
+        .map((key) => `${key} = ?`)
+        .join(', ')
+      const values = Object.values(updatedData)
+
+      // Construct the SQL query for updating the row
+      const updateQuery = `UPDATE ${tableData.name} SET ${columns} WHERE id = ?`
+      const params = [...values, rowIndex] // Assuming rowIndex corresponds to the row ID
+
+      db.run(updateQuery, params, function (updateErr) {
+        if (updateErr) {
+          return res.status(500).json({ error: 'Error updating row', details: updateErr.message })
+        }
+
+        return res.status(200).json({ message: 'Row updated successfully' })
+      })
+    })
+  }
+)
+
 // Start the server
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`)
