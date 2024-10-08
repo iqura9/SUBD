@@ -7,6 +7,7 @@ import { useParams } from 'react-router-dom'
 import MergeButton from '../MergeButton'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table'
 
 const fetchTableDetails = async (dbId: string, tableId: string) => {
@@ -86,7 +87,7 @@ const TablePage: React.FC = () => {
 
   const handleDelete = async (rowId: number) => {
     try {
-      await api.delete(`/api/databases/${dbId}/tables/${tableId}/rows/${rowId}`) // Update your API endpoint as necessary
+      await api.delete(`/api/databases/${dbId}/tables/${tableId}/rows/${rowId}`)
       queryClient.invalidateQueries(['table', dbId, tableId])
     } catch (error) {
       console.error('Error updating data:', error)
@@ -97,7 +98,13 @@ const TablePage: React.FC = () => {
 
   const { data: tables } = useTables('all')
 
-  console.log(tables)
+  const [selectedTableId, setSelectedTableId] = useState<string>('')
+
+  const selectedDbId = tables?.find((el) => el.id == selectedTableId)?.dbId
+
+  const handleSelectChange = (tableId: string) => {
+    setSelectedTableId(tableId)
+  }
 
   if (isLoading) return <div>Loading table details...</div>
   if (isError) return <div>Error loading table details: {error.message}</div>
@@ -106,7 +113,24 @@ const TablePage: React.FC = () => {
     <div>
       <h2 className="font-bold text-2xl">Table Details</h2>
       <h3 className="font-bold text-lg">Table Name: {data.table.name}</h3>
-      <MergeButton currentDbId={''} currentTableId={''} selectedDbId={''} selectedTableId={''} />
+      <MergeButton
+        currentDbId={dbId ?? ''}
+        currentTableId={tableId ?? ''}
+        selectedDbId={selectedDbId}
+        selectedTableId={selectedTableId}
+      />
+      <Select onValueChange={handleSelectChange}>
+        <SelectTrigger>
+          <SelectValue placeholder="Select a table" />
+        </SelectTrigger>
+        <SelectContent>
+          {tables.map((table) => (
+            <SelectItem key={table.id} value={String(table.id)}>
+              {table.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       <Table>
         <TableHeader>
           <TableRow>
