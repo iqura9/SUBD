@@ -88,7 +88,7 @@ app.get('/api/databases/:dbId/tables', (req: Request<{ dbId: string }>, res: Res
   // Execute the query
   db.all(getTablesQuery, [dbId], (err, rows) => {
     if (err) {
-      // Return a 500 response in case of an error
+      console.error('Database error:', err) // Log the error for debugging
       return res.status(500).json({ error: 'Error retrieving tables', details: err.message })
     }
 
@@ -108,7 +108,6 @@ app.get(
   (req: Request<{ dbId: string; tableId: string }>, res: Response) => {
     const { dbId, tableId } = req.params
 
-    // SQL query to get the table details from the 'tables' table
     const getTableQuery = `SELECT * FROM tables WHERE dbId = ? AND id = ?`
 
     db.get(getTableQuery, [dbId, tableId], (err, tableData: { name: string }) => {
@@ -130,8 +129,17 @@ app.get(
             .json({ error: 'Error retrieving columns', details: columnErr.message })
         }
 
-        // Return both table details and its columns
-        return res.status(200).json({ table: tableData, columns })
+        // Now get the rows from the table
+        const getRowsQuery = `SELECT * FROM "${tableData.name}"` // Use double quotes to avoid syntax errors
+
+        db.all(getRowsQuery, [], (rowErr, rows) => {
+          if (rowErr) {
+            return res.status(500).json({ error: 'Error retrieving rows', details: rowErr.message })
+          }
+
+          // Return both table details, columns, and rows
+          return res.status(200).json({ table: tableData, columns, rows })
+        })
       })
     })
   }
@@ -214,22 +222,36 @@ app.post(
     const { dbId, tableId } = req.params
     const data = req.body // Expecting an object with column-value pairs
 
-    // Construct the INSERT INTO query
-    const columns = Object.keys(data)
-      .map((key) => `"${key}"`)
-      .join(', ')
-    const values = Object.values(data)
-      .map((value) => `"${value}"`)
-      .join(', ')
+    // Check if the table exists in the specific database
+    db.get(
+      `SELECT name FROM tables WHERE dbId=? AND id=? `,
+      [dbId, tableId],
+      (err, row: { name: string }) => {
+        if (err || !row) {
+          return res.status(404).json({ error: 'Table not found' })
+        }
+        const tableName = row.name
+        // Prepare the insert query with parameterized values
+        const columns = Object.keys(data)
+          .map((col) => `"${col}"`)
+          .join(', ')
+        const placeholders = Object.keys(data)
+          .map(() => '?')
+          .join(', ')
+        const insertQuery = `INSERT INTO "${tableName}" (${columns}) VALUES (${placeholders})`
 
-    const insertQuery = `INSERT INTO "${tableId}" (${columns}) VALUES (${values})`
+        // Use an array of values to safely bind to the query
+        const values = Object.values(data)
 
-    db.run(insertQuery, [], (err) => {
-      if (err) {
-        return res.status(500).json({ error: 'Error inserting data', details: err.message })
+        db.run(insertQuery, values, function (err) {
+          if (err) {
+            console.error('Error during insertion:', err)
+            return res.status(500).json({ error: 'Error inserting data', details: err.message })
+          }
+          return res.status(201).json({ message: 'Data inserted successfully', id: this.lastID }) // Include the ID of the new row
+        })
       }
-      return res.status(201).json({ message: 'Data inserted successfully' })
-    })
+    )
   }
 )
 

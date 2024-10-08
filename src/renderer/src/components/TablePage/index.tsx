@@ -1,16 +1,12 @@
 import api from '@renderer/api'
+
 import { useQuery } from '@tanstack/react-query'
-import React from 'react'
+
+import React, { useState } from 'react'
 import { useParams } from 'react-router-dom'
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '../ui/table'
+import { Button } from '../ui/button'
+import { Input } from '../ui/input'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table'
 
 const fetchTableDetails = async (dbId: string, tableId: string) => {
   const { data } = await api.get(`/api/databases/${dbId}/tables/${tableId}`)
@@ -25,33 +21,69 @@ const TablePage: React.FC = () => {
     enabled: !!dbId && !!tableId
   })
 
+  const [rowData, setRowData] = useState<any>({})
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, type: string) => {
+    const { name, value } = e.target
+    const fieldValue = type === 'INTEGER' ? Number(value) : value
+    setRowData((prevData) => ({ ...prevData, [name]: fieldValue }))
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      await api.post(`/api/databases/${dbId}/tables/${tableId}/rows`, rowData)
+      alert('Data inserted successfully!')
+      setRowData({}) // Reset form
+    } catch (error) {
+      console.error('Error inserting data:', error)
+      alert('Error inserting data: ' + error.message)
+    }
+  }
+
   if (isLoading) return <div>Loading table details...</div>
   if (isError) return <div>Error loading table details: {error.message}</div>
 
   return (
-    <div className="p-4">
-      <h2 className="text-xl font-bold mb-4">Table Details</h2>
+    <div>
+      <h2>Table Details</h2>
+      <h3>Table Name: {data.name}</h3>
 
       <Table>
-        <TableCaption>Table name: {data.table.name}.</TableCaption>
-
         <TableHeader>
           <TableRow>
-            <TableHead>Column Name</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead>Primary Key</TableHead>
-            <TableHead>Not Null</TableHead>
+            {data.columns?.map((column: { name: string }) => (
+              <TableHead key={column.name}>{column.name}</TableHead>
+            ))}
           </TableRow>
         </TableHeader>
         <TableBody>
-          {data?.columns?.map((column: any) => (
-            <TableRow key={column.cid}>
-              <TableCell>{column.name}</TableCell>
-              <TableCell>{column.type}</TableCell>
-              <TableCell>{column.pk ? 'Yes' : 'No'}</TableCell>
-              <TableCell>{column.notnull ? 'Yes' : 'No'}</TableCell>
+          {data.rows?.map((row: any, rowIndex: number) => (
+            <TableRow key={rowIndex}>
+              {data.columns.map((column: { name: string }) => (
+                <TableCell key={column.name}>{row[column.name]}</TableCell>
+              ))}
             </TableRow>
           ))}
+          <TableRow>
+            {data.columns?.map((column: { name: string; type: string }) => (
+              <TableCell key={column.name}>
+                <Input
+                  type={column.type === 'INTEGER' ? 'number' : 'text'}
+                  name={column.name}
+                  value={rowData[column.name] || ''}
+                  onChange={(e) => handleInputChange(e, column.type)}
+                  placeholder={`Enter ${column.name}`}
+                  required
+                />
+              </TableCell>
+            ))}
+            <TableCell>
+              <Button type="submit" onClick={handleSubmit}>
+                Save
+              </Button>
+            </TableCell>
+          </TableRow>
         </TableBody>
       </Table>
     </div>
