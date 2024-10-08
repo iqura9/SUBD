@@ -62,8 +62,6 @@ const Sidebar = () => {
     navigate(`/databases/create-table/${dbId}`)
   }
 
-  console.log('data', data)
-
   return (
     <div className="flex">
       {/* Sidebar */}
@@ -93,14 +91,6 @@ const Sidebar = () => {
                 </ContextMenuContent>
               </ContextMenu>
 
-              {/* Display tables inside the database */}
-              {/* <ul className="pl-4">
-                {db.tables?.map((table, index) => (
-                  <li key={index} className="p-1 text-gray-300">
-                    {table}
-                  </li>
-                ))}
-              </ul> */}
               <TablesList dbId={db.id} />
             </li>
           ))}

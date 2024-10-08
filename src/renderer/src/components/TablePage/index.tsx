@@ -1,8 +1,10 @@
 import api from '@renderer/api'
+import { useTables } from '@renderer/hooks/useTables'
 import { queryClient } from '@renderer/main'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import React, { useState } from 'react'
 import { useParams } from 'react-router-dom'
+import MergeButton from '../MergeButton'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table'
@@ -93,6 +95,10 @@ const TablePage: React.FC = () => {
     setEditCell(null) // Exit edit mode
   }
 
+  const { data: tables } = useTables('all')
+
+  console.log(tables)
+
   if (isLoading) return <div>Loading table details...</div>
   if (isError) return <div>Error loading table details: {error.message}</div>
 
@@ -100,7 +106,7 @@ const TablePage: React.FC = () => {
     <div>
       <h2 className="font-bold text-2xl">Table Details</h2>
       <h3 className="font-bold text-lg">Table Name: {data.table.name}</h3>
-
+      <MergeButton currentDbId={''} currentTableId={''} selectedDbId={''} selectedTableId={''} />
       <Table>
         <TableHeader>
           <TableRow>

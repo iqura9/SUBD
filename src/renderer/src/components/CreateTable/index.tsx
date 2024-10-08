@@ -2,6 +2,7 @@
 import api from '@renderer/api'
 import { useMutation } from '@tanstack/react-query'
 import React, { useState } from 'react'
+import { useParams } from 'react-router-dom'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
@@ -94,7 +95,8 @@ const CreateTable: React.FC<{ dbId: number }> = ({ dbId }) => {
   )
 }
 const CreateTablePage = () => {
-  return <CreateTable dbId={1} />
+  const { dbId } = useParams()
+  return <CreateTable dbId={Number(dbId)} />
 }
 
 export default CreateTablePage

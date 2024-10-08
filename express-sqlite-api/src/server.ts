@@ -82,11 +82,16 @@ app.post('/api/databases', (req: Request, res: Response) => {
 app.get('/api/databases/:dbId/tables', (req: Request<{ dbId: string }>, res: Response) => {
   const { dbId } = req.params
 
+  let getTablesQuery = `SELECT * FROM tables WHERE dbId = ?`
+  let params = [dbId]
+  if (dbId === 'all') {
+    getTablesQuery = 'SELECT * FROM tables'
+    params = []
+  }
   // SQL query to select all tables for the given database ID
-  const getTablesQuery = `SELECT * FROM tables WHERE dbId = ?`
 
   // Execute the query
-  db.all(getTablesQuery, [dbId], (err, rows) => {
+  db.all(getTablesQuery, params, (err, rows) => {
     if (err) {
       console.error('Database error:', err) // Log the error for debugging
       return res.status(500).json({ error: 'Error retrieving tables', details: err.message })
@@ -329,6 +334,103 @@ app.delete(
         return res.status(200).json({ message: 'Row deleted successfully' })
       })
     })
+  }
+)
+
+app.post(
+  '/api/databases/:currentDbId/tables/:currentTableId/merge/:selectedDbId/:selectedTableId',
+  (
+    req: Request<{
+      currentDbId: string
+      currentTableId: string
+      selectedDbId: string
+      selectedTableId: string
+    }>,
+    res: Response
+  ) => {
+    const { currentDbId, currentTableId, selectedDbId, selectedTableId } = req.params
+
+    // Step 1: Get current table name
+    const getCurrentTableQuery = `SELECT name FROM tables WHERE dbId = ? AND id = ?`
+
+    db.get(
+      getCurrentTableQuery,
+      [currentDbId, currentTableId],
+      (err, currentTableData: { name: string }) => {
+        if (err) {
+          return res
+            .status(500)
+            .json({ error: 'Error retrieving current table', details: err.message })
+        }
+
+        if (!currentTableData) {
+          return res.status(404).json({ error: 'Current table not found' })
+        }
+
+        // Step 2: Get selected table name
+        const getSelectedTableQuery = `SELECT name FROM tables WHERE dbId = ? AND id = ?`
+
+        db.get(
+          getSelectedTableQuery,
+          [selectedDbId, selectedTableId],
+          (err, selectedTableData: { name: string }) => {
+            if (err) {
+              return res
+                .status(500)
+                .json({ error: 'Error retrieving selected table', details: err.message })
+            }
+
+            if (!selectedTableData) {
+              return res.status(404).json({ error: 'Selected table not found' })
+            }
+
+            // Step 3: Get all rows from the selected table
+            const getRowsQuery = `SELECT * FROM ${selectedTableData.name}`
+
+            db.all(getRowsQuery, [], (err, rows: string[]) => {
+              if (err) {
+                return res.status(500).json({
+                  error: 'Error retrieving rows from selected table',
+                  details: err.message
+                })
+              }
+
+              // Step 4: Iterate through rows and insert into the current table
+              const insertPromises = rows.map((row) => {
+                // Create insert query for current table
+                const columns = Object.keys(row)
+                  .map((col) => `"${col}"`)
+                  .join(', ')
+                const values = Object.values(row)
+                  .map((value) => `"${value}"`)
+                  .join(', ')
+                const insertQuery = `INSERT INTO ${currentTableData.name} (${columns}) VALUES (${values})`
+
+                return new Promise((resolve, reject) => {
+                  db.run(insertQuery, [], (err) => {
+                    if (err) {
+                      return reject(err)
+                    }
+                    resolve(true)
+                  })
+                })
+              })
+
+              // Step 5: Wait for all inserts to finish
+              Promise.all(insertPromises)
+                .then(() => {
+                  return res.status(200).json({ message: 'Tables merged successfully' })
+                })
+                .catch((error) => {
+                  return res
+                    .status(500)
+                    .json({ error: 'Error merging tables', details: error.message })
+                })
+            })
+          }
+        )
+      }
+    )
   }
 )
 
