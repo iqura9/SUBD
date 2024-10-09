@@ -437,8 +437,6 @@ app.post(
                       .map((value) => `"${value}"`)
                       .join(', ')
 
-                    console.log('columns', columns)
-                    console.log('values', values)
                     const insertQuery = `INSERT INTO ${currentTableData.name} (${columns}) VALUES (${values})`
 
                     return new Promise((resolve, reject) => {

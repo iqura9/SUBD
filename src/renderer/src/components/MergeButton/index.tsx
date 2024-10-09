@@ -1,6 +1,8 @@
 import api from '@renderer/api'
+import { queryClient } from '@renderer/main'
 import { useMutation } from '@tanstack/react-query'
 import React from 'react'
+import { useParams } from 'react-router-dom'
 import { Button } from '../ui/button'
 
 const MergeButton: React.FC<{
@@ -9,6 +11,7 @@ const MergeButton: React.FC<{
   selectedDbId: string
   selectedTableId: string
 }> = ({ currentDbId, currentTableId, selectedDbId, selectedTableId }) => {
+  const { dbId = '' } = useParams()
   const mergeTablesMutation = useMutation({
     mutationFn: async () => {
       await api.post(
@@ -17,7 +20,7 @@ const MergeButton: React.FC<{
     },
     onSuccess: () => {
       alert('Tables merged successfully!')
-      // Optionally, invalidate queries or refetch data here
+      queryClient.invalidateQueries(['tables', dbId])
     },
     onError: (error) => {
       console.error('Error merging tables:', error)
