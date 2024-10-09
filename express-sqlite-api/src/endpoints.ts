@@ -134,3 +134,41 @@ export function createMergeEndpoint(app: Express, db: Database) {
     }
   )
 }
+
+export function createDatabaseEndpoint(app: Express, db: Database) {
+  return app.post('/api/databases', (req: Request, res: Response) => {
+    const { name } = req.body
+
+    if (!name) {
+      return res.status(400).json({ error: 'Database name is required' })
+    }
+
+    const insertDbQuery = `INSERT INTO databases (name) VALUES (?)`
+
+    db.run(insertDbQuery, [name], function (err) {
+      if (err) {
+        return res.status(500).json({ error: err.message })
+      }
+
+      return res.status(201).json({ message: 'Database created', id: this.lastID })
+    })
+  })
+}
+
+export function getDatabaseEndpoint(app: Express, db: Database) {
+  return app.get('/api/databases', (req: Request, res: Response) => {
+    const getDatabasesQuery = `SELECT * FROM databases`
+
+    db.all(getDatabasesQuery, [], (err, rows) => {
+      if (err) {
+        return res.status(500).json({ error: 'Error retrieving databases', details: err.message })
+      }
+
+      if (rows.length === 0) {
+        return res.status(200).json({ databases: [] })
+      }
+
+      return res.status(200).json({ databases: rows })
+    })
+  })
+}
