@@ -1,7 +1,7 @@
 import cors from 'cors'
 import express, { Request, Response } from 'express'
-import path from 'path'
-import sqlite3 from 'sqlite3'
+import { db } from './db'
+import { createMergeEndpoint } from './endpoints'
 
 // Create the express application
 const app = express()
@@ -12,36 +12,6 @@ app.use(express.json())
 app.use(cors())
 
 app.options('*', cors())
-
-// Connect to SQLite database (file-based)
-const db = new sqlite3.Database(path.resolve(__dirname, 'database.sqlite'), (err) => {
-  if (err) {
-    console.error('Error connecting to the database:', err.message)
-  } else {
-    console.log('Connected to the SQLite database.')
-
-    // Create "databases" and "tables" tables if they don't exist
-    db.run(`CREATE TABLE IF NOT EXISTS databases (
-      id INTEGER PRIMARY KEY AUTOINCREMENT, 
-      name TEXT UNIQUE
-    )`)
-
-    db.run(`CREATE TABLE IF NOT EXISTS tables (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        dbId INTEGER,
-        FOREIGN KEY (dbId) REFERENCES databases(id)
-    )`)
-
-    db.run(`CREATE TABLE IF NOT EXISTS columns (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        type TEXT NOT NULL,
-        tableId INTEGER,
-        FOREIGN KEY (tableId) REFERENCES tables(id)
-    )`)
-  }
-})
 
 // Get all databases
 app.get('/api/databases', (req: Request, res: Response) => {
@@ -337,137 +307,7 @@ app.delete(
   }
 )
 
-app.post(
-  '/api/databases/:currentDbId/tables/:currentTableId/merge/:selectedDbId/:selectedTableId',
-  (
-    req: Request<{
-      currentDbId: string
-      currentTableId: string
-      selectedDbId: string
-      selectedTableId: string
-    }>,
-    res: Response
-  ) => {
-    const { currentDbId, currentTableId, selectedDbId, selectedTableId } = req.params
-
-    // Step 1: Get current table name and columns
-    const getCurrentTableQuery = `SELECT name FROM tables WHERE dbId = ? AND id = ?`
-    db.get(
-      getCurrentTableQuery,
-      [currentDbId, currentTableId],
-      (err, currentTableData: { name: string }) => {
-        if (err) {
-          return res
-            .status(500)
-            .json({ error: 'Error retrieving current table', details: err.message })
-        }
-
-        if (!currentTableData) {
-          return res.status(404).json({ error: 'Current table not found' })
-        }
-
-        // Get columns of the current table
-        const getCurrentColumnsQuery = `PRAGMA table_info(${currentTableData.name})`
-        db.all(getCurrentColumnsQuery, [], (err, currentColumns: { name: string }[]) => {
-          if (err) {
-            return res
-              .status(500)
-              .json({ error: 'Error retrieving current table columns', details: err.message })
-          }
-
-          // Step 2: Get selected table name and columns
-          const getSelectedTableQuery = `SELECT name FROM tables WHERE dbId = ? AND id = ?`
-          db.get(
-            getSelectedTableQuery,
-            [selectedDbId, selectedTableId],
-            (err, selectedTableData: { name: string }) => {
-              if (err) {
-                return res
-                  .status(500)
-                  .json({ error: 'Error retrieving selected table', details: err.message })
-              }
-
-              if (!selectedTableData) {
-                return res.status(404).json({ error: 'Selected table not found' })
-              }
-
-              // Get columns of the selected table
-              const getSelectedColumnsQuery = `PRAGMA table_info(${selectedTableData.name})`
-              db.all(getSelectedColumnsQuery, [], (err, selectedColumns: { name: string }[]) => {
-                if (err) {
-                  return res.status(500).json({
-                    error: 'Error retrieving selected table columns',
-                    details: err.message
-                  })
-                }
-
-                // Step 3: Map current and selected columns
-                const currentColumnNames = currentColumns.map((col) => col.name)
-                const selectedColumnNames = selectedColumns.map((col) => col.name)
-
-                // Step 4: Check for common columns to merge
-                const commonColumns = currentColumnNames
-                  .filter((col) => selectedColumnNames.includes(col))
-                  .filter((data) => data != 'id')
-
-                // Step 5: Get all rows from the selected table
-                const getRowsQuery = `SELECT * FROM ${selectedTableData.name}`
-                db.all(getRowsQuery, [], (err, rows: { [key: string]: unknown }[]) => {
-                  if (err) {
-                    return res.status(500).json({
-                      error: 'Error retrieving rows from selected table',
-                      details: err.message
-                    })
-                  }
-
-                  // Step 6: Insert rows into the current table for common columns
-                  const insertPromises = rows.map((row) => {
-                    // Prepare data for the insert based on common columns
-                    const insertData = {}
-                    commonColumns.forEach((col) => {
-                      //@ts-ignore
-                      insertData[col] = row[col] // Merge only common columns
-                    })
-
-                    // Create insert query for current table
-                    const columns = Object.keys(insertData)
-                      .map((col) => `"${col}"`)
-                      .join(', ')
-                    const values = Object.values(insertData)
-                      .map((value) => `"${value}"`)
-                      .join(', ')
-
-                    const insertQuery = `INSERT INTO ${currentTableData.name} (${columns}) VALUES (${values})`
-
-                    return new Promise((resolve, reject) => {
-                      db.run(insertQuery, [], (err) => {
-                        if (err) {
-                          return reject(err)
-                        }
-                        resolve(true)
-                      })
-                    })
-                  })
-
-                  // Step 7: Wait for all inserts to finish
-                  Promise.all(insertPromises)
-                    .then(() => {
-                      return res.status(200).json({ message: 'Tables merged successfully' })
-                    })
-                    .catch((error) => {
-                      return res
-                        .status(500)
-                        .json({ error: 'Error merging tables', details: error.message })
-                    })
-                })
-              })
-            }
-          )
-        })
-      }
-    )
-  }
-)
+createMergeEndpoint(app, db)
 
 // Start the server
 app.listen(PORT, () => {
