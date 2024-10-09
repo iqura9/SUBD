@@ -10,7 +10,7 @@ app.use(express.json())
 
 const PORT = 5002
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`)
 })
 
@@ -70,9 +70,10 @@ beforeAll(() => {
   createMergeEndpoint(app, db)
 })
 
-afterAll(async () => {
-  await closeDatabase()
-}, 10000)
+afterAll(() => {
+  closeDatabase()
+  server.close()
+})
 
 describe('Database API', () => {
   it('should retrieve all databases', async () => {
@@ -122,18 +123,13 @@ describe('Database API', () => {
         name: 'Table2'
       })
 
-    console.log('table1Response.body', table1Response.body)
-    console.log('table2Response.body', table2Response.body)
-
     const table1Id = table1Response.body.tableId
     const table2Id = table2Response.body.tableId
 
     // Insert rows into both tables (mocked responses)
-    const inrest = await request(app)
+    await request(app)
       .post(`/api/databases/${db1Id}/tables/${table1Id}/rows`)
       .send({ data: 'Row1' })
-
-    console.log('inrest', inrest.body)
 
     await request(app)
       .post(`/api/databases/${db2Id}/tables/${table2Id}/rows`)
@@ -143,8 +139,6 @@ describe('Database API', () => {
     const mergeResponse = await request(app).post(
       `/api/databases/${db1Id}/tables/${table1Id}/merge/${db2Id}/${table2Id}`
     )
-
-    console.log('mergeResponse', mergeResponse.body)
 
     expect(mergeResponse.status).toBe(200)
     expect(mergeResponse.body).toHaveProperty('message', 'Tables merged successfully')
