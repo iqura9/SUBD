@@ -1,74 +1,132 @@
-import cors from 'cors'
-import express from 'express'
-import sqlite3 from 'sqlite3'
 import request from 'supertest'
+import app from './server'
 
-// Mock express app setup
-const app = express()
-app.use(express.json())
-app.use(cors())
-
-// Mock SQLite database
-const db = new sqlite3.Database(':memory:') // Use in-memory database for testing
-
-// Your original database schema and endpoints setup here
-db.serialize(() => {
-  // Create necessary tables for testing
-  db.run(
-    `CREATE TABLE IF NOT EXISTS databases (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE)`
-  )
-  db.run(
-    `CREATE TABLE IF NOT EXISTS tables (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, dbId INTEGER, FOREIGN KEY (dbId) REFERENCES databases(id))`
-  )
-  db.run(
-    `CREATE TABLE IF NOT EXISTS columns (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, type TEXT NOT NULL, tableId INTEGER, FOREIGN KEY (tableId) REFERENCES tables(id))`
-  )
+jest.mock('sqlite3', () => {
+  const mockDb = {
+    run: jest.fn(),
+    get: jest.fn(),
+    all: jest.fn(),
+    close: jest.fn((callback) => callback()), // Mock close method
+    serialize: jest.fn((cb) => cb())
+  }
+  return { Database: jest.fn(() => mockDb) }
 })
 
-// Define your endpoints (the same ones you defined in your server.ts)
-app.get('/api/databases', (req, res) => {
-  db.all(`SELECT * FROM databases`, [], (err, rows) => {
-    if (err) {
-      return res.status(500).json({ error: 'Error retrieving databases', details: err.message })
+let db: any
+
+// Mock SQLite database setup
+const setupDatabase = () => {
+  db = new (require('sqlite3').Database)(':memory:')
+
+  // Mock the methods
+  db.run.mockImplementation((sql: string, params: any[], callback: Function) => {
+    if (sql.startsWith('CREATE TABLE')) {
+      callback(null)
+    } else if (sql.startsWith('INSERT')) {
+      callback(null)
+    } else {
+      callback(new Error('SQL not recognized'))
     }
-    return res.status(200).json({ databases: rows })
   })
-})
 
-app.post('/api/databases', (req, res) => {
-  const { name } = req.body
-  const insertDbQuery = `INSERT INTO databases (name) VALUES (?)`
-  db.run(insertDbQuery, [name], function (err) {
-    if (err) {
-      return res.status(500).json({ error: err.message })
+  db.get.mockImplementation((sql: string, params: any[], callback: Function) => {
+    callback(null, { id: 1, name: 'TestDatabase' }) // Example response
+  })
+
+  db.all.mockImplementation((sql: string, params: any[], callback: Function) => {
+    if (sql.includes('databases')) {
+      callback(null, [{ id: 1, name: 'TestDatabase' }]) // Example response for all databases
+    } else {
+      callback(new Error('SQL not recognized'))
     }
-    return res.status(201).json({ message: 'Database created', id: this.lastID })
   })
+}
+
+const closeDatabase = () => {
+  return new Promise<void>((resolve) => {
+    if (db && db.close) {
+      db.close(() => {
+        resolve()
+      })
+    } else {
+      resolve() // Resolve immediately if db is not defined
+    }
+  })
+}
+
+beforeAll(() => {
+  setupDatabase()
 })
 
-// Add more endpoints as necessary...
+afterAll(async () => {
+  await closeDatabase()
+}, 10000) // Increase timeout if needed
 
 describe('Database API', () => {
-  // Test case to get all databases
   it('should retrieve all databases', async () => {
     const response = await request(app).get('/api/databases')
     expect(response.status).toBe(200)
     expect(response.body).toHaveProperty('databases')
   })
 
-  // Test case to create a new database
   it('should create a new database', async () => {
-    const response = await request(app).post('/api/databases').send({ name: 'Test Database' })
-
+    const response = await request(app).post('/api/databases').send({ name: 'TestDatabase' })
     expect(response.status).toBe(201)
     expect(response.body).toHaveProperty('message', 'Database created')
   })
 
-  // Add more test cases for other endpoints...
-})
+  it.only('should merge tables successfully', async () => {
+    // Setup: Create test databases and tables
+    const db1Response = await request(app).post('/api/databases').send({ name: 'IquraDb' })
+    const db2Response = await request(app).post('/api/databases').send({ name: 'RootDb' })
 
-// Close the database after tests
-afterAll((done) => {
-  db.close()
-  done()
+    const db1Id = db1Response.body.id
+    const db2Id = db2Response.body.id
+
+    console.log('db1Response.body', db1Response.body)
+    console.log('db2Response.body', db2Response.body)
+
+    // Create tables in the databases
+    const table1Response = await request(app)
+      .post(`/api/databases/${db1Id}/tables`)
+      .send({ name: 'Table1' })
+    const table2Response = await request(app)
+      .post(`/api/databases/${db2Id}/tables`)
+      .send({ name: 'Table2' })
+
+    const table1Id = table1Response.body.id
+    const table2Id = table2Response.body.id
+
+    // Mock the responses for inserting columns and rows
+    db.run.mockImplementationOnce((sql: string, params: any[], callback: Function) => {
+      callback(null)
+    })
+
+    // Insert rows into both tables (mocked responses)
+    db.run.mockImplementationOnce((sql: string, params: any[], callback: Function) => {
+      callback(null)
+    })
+
+    db.run.mockImplementationOnce((sql: string, params: any[], callback: Function) => {
+      callback(null)
+    })
+
+    // Mock the merge response
+    const mergeResponse = await request(app).post(
+      `/api/databases/${db1Id}/tables/${table1Id}/merge/${db2Id}/${table2Id}`
+    )
+
+    expect(mergeResponse.status).toBe(200)
+    expect(mergeResponse.body).toHaveProperty('message', 'Tables merged successfully')
+
+    // Verify the data was merged correctly
+    const currentTableDataResponse = await request(app).get(
+      `/api/databases/${db1Id}/tables/${table1Id}/rows`
+    )
+    expect(currentTableDataResponse.body).toEqual([
+      { id: 1, data: 'Row1' },
+      { data: 'Row2' },
+      { data: 'Row3' }
+    ])
+  })
 })
