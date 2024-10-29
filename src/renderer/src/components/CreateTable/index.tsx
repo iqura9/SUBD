@@ -72,6 +72,7 @@ const CreateTable: React.FC<{ dbId: number }> = ({ dbId }) => {
               <SelectItem value="real">Real</SelectItem>
               <SelectItem value="char">Char</SelectItem>
               <SelectItem value="string">String</SelectItem>
+              <SelectItem value="interval">Interval</SelectItem>
             </SelectContent>
           </Select>
           <Button type="button" onClick={() => removeColumn(index)}>

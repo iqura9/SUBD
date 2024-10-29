@@ -54,8 +54,24 @@ const TablePage: React.FC = () => {
     setEditRowData((prevData) => ({ ...prevData, [name]: fieldValue }))
   }
 
-  const handleDoubleClick = (rowIndex: number, columnName: string, currentValue: any) => {
+  const handleDoubleClick = (
+    rowIndex: number,
+    columnName: string,
+    currentValue: any,
+    type: string
+  ) => {
     if (columnName == 'id') return
+
+    if (type === 'INTERVAL') {
+      setEditCell({ rowIndex, columnName })
+      setEditRowData((prevData) => ({
+        ...prevData,
+        [columnName + 'start']: currentValue.split('-')[0],
+        [columnName + 'end']: currentValue.split('-')[1]
+      }))
+
+      return
+    }
 
     setEditCell({ rowIndex, columnName })
     setEditRowData((prevData) => ({ ...prevData, [columnName]: currentValue }))
@@ -64,6 +80,20 @@ const TablePage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
+      const intervalName = data.columns.find((el) => el.type === 'INTERVAL')?.name
+
+      if (intervalName) {
+        const start = rowData[intervalName + 'start'].split('').join(' ')
+        const end = rowData[intervalName + 'end'].split('').join(' ')
+        rowData[intervalName] = start + '-' + end
+
+        Object.keys(rowData).forEach((key) => {
+          if (key.includes(intervalName + 'start') || key.includes(intervalName + 'end')) {
+            delete rowData[key]
+          }
+        })
+      }
+
       mutation.mutate(rowData)
       setRowData({})
       setEditRowData({})
@@ -75,6 +105,20 @@ const TablePage: React.FC = () => {
 
   const handleSaveEdit = async (rowId: number, columnName: string) => {
     const updatedRowData = { ...editRowData }
+
+    const intervalName = data.columns.find((el) => el.type === 'INTERVAL')?.name
+
+    if (intervalName) {
+      const start = updatedRowData[intervalName + 'start'].split('').join(' ')
+      const end = updatedRowData[intervalName + 'end'].split('').join(' ')
+      updatedRowData[intervalName] = start + '-' + end
+
+      Object.keys(updatedRowData).forEach((key) => {
+        if (key.includes(intervalName + 'start') || key.includes(intervalName + 'end')) {
+          delete updatedRowData[key]
+        }
+      })
+    }
     try {
       await api.put(`/api/databases/${dbId}/tables/${tableId}/rows/${rowId}`, updatedRowData) // Update your API endpoint as necessary
       queryClient.invalidateQueries(['table', dbId, tableId])
@@ -145,17 +189,40 @@ const TablePage: React.FC = () => {
               {data.columns.map((column: { name: string; type: string }) => (
                 <TableCell
                   key={column.name}
-                  onDoubleClick={() => handleDoubleClick(rowIndex, column.name, row[column.name])}
+                  onDoubleClick={() =>
+                    handleDoubleClick(rowIndex, column.name, row[column.name], column.type)
+                  }
                 >
                   {editCell?.rowIndex === rowIndex && editCell?.columnName === column.name ? (
-                    <Input
-                      type={column.type === 'INTEGER' ? 'number' : 'text'}
-                      name={column.name}
-                      value={editRowData[column.name] || ''}
-                      onChange={(e) => handleEditInputChange(e, column.type)}
-                      onBlur={() => handleSaveEdit(row.id, column.name)} // Save on blur
-                      placeholder={`Enter ${column.name}`}
-                    />
+                    column.type === 'INTERVAL' ? (
+                      <div>
+                        <Input
+                          type={column.type}
+                          name={column.name + 'start'}
+                          value={editRowData[column.name + 'start'] || ''}
+                          onChange={(e) => handleEditInputChange(e, column.type)}
+                          onBlur={() => handleSaveEdit(row.id, column.name + 'start')} // Save on blur
+                          placeholder={`Enter ${column.name} start`}
+                        />
+                        <Input
+                          type={column.type}
+                          name={column.name + 'end'}
+                          value={editRowData[column.name + 'end'] || ''}
+                          onChange={(e) => handleEditInputChange(e, column.type)}
+                          onBlur={() => handleSaveEdit(row.id, column.name + 'end')} // Save on blur
+                          placeholder={`Enter ${column.name} end`}
+                        />
+                      </div>
+                    ) : (
+                      <Input
+                        type={column.type === 'INTEGER' ? 'number' : 'text'}
+                        name={column.name}
+                        value={editRowData[column.name] || ''}
+                        onChange={(e) => handleEditInputChange(e, column.type)}
+                        onBlur={() => handleSaveEdit(row.id, column.name)} // Save on blur
+                        placeholder={`Enter ${column.name}`}
+                      />
+                    )
                   ) : (
                     row[column.name] // Display current value
                   )}
@@ -168,19 +235,42 @@ const TablePage: React.FC = () => {
           ))}
 
           <TableRow>
-            {data.columns?.map((column: { name: string; type: string }) => (
-              <TableCell key={column.name}>
-                <Input
-                  type={column.type === 'INTEGER' ? 'number' : 'text'}
-                  name={column.name}
-                  value={rowData[column.name] || ''}
-                  onChange={(e) => handleInputChange(e, column.type)}
-                  placeholder={`Enter ${column.name}`}
-                  required
-                  disabled={column.name === 'id'}
-                />
-              </TableCell>
-            ))}
+            {data.columns?.map((column: { name: string; type: string }) =>
+              column.type === 'INTERVAL' ? (
+                <>
+                  <TableCell key={column.name + 'start'}>
+                    <Input
+                      type={column.type}
+                      name={column.name + 'start'}
+                      value={rowData[column.name + 'start'] || ''}
+                      onChange={(e) => handleInputChange(e, column.type)}
+                      placeholder={`Enter ${column.name} start`}
+                    />
+                  </TableCell>
+                  <TableCell key={column.name + 'end'}>
+                    <Input
+                      type={column.type}
+                      name={column.name + 'end'}
+                      value={rowData[column.name + 'end'] || ''}
+                      onChange={(e) => handleInputChange(e, column.type)}
+                      placeholder={`Enter ${column.name} end`}
+                    />
+                  </TableCell>
+                </>
+              ) : (
+                <TableCell key={column.name}>
+                  <Input
+                    type={column.type === 'INTEGER' ? 'number' : 'text'}
+                    name={column.name}
+                    value={rowData[column.name] || ''}
+                    onChange={(e) => handleInputChange(e, column.type)}
+                    placeholder={`Enter ${column.name}`}
+                    required
+                    disabled={column.name === 'id'}
+                  />
+                </TableCell>
+              )
+            )}
             <TableCell>
               <Button type="submit" onClick={handleSubmit}>
                 Save
